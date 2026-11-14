@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Catálogo y base de datos bibliográfica de Rubén">
+  <title>Biblioteca de Rubén</title>
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+
+  <!-- CABECERA PRINCIPAL -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-section">
+        <span class="brand-icon">📚</span>
+        <div>
+          <h1 class="brand-title">Biblioteca de Rubén</h1>
+        </div>
+      </div>
+      
+      <!-- Botones de Acción Global -->
+      <div class="header-actions">
+        <button class="btn-action-guide" id="btnOpenCduGuide" title="Consultar el significado de los códigos CDU">
+          ℹ️ Guía CDU
+        </button>
+        <button class="btn-action-primary" id="btnOpenNewBookModal" title="Añadir un nuevo libro al catálogo">
+          ➕ Nuevo Libro
+        </button>
+        <button class="btn-action-secondary" id="btnExportJson" title="Descargar copia de seguridad de la base de datos">
+          💾 Exportar BD
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Estados de Lectura en Cabecera (Exclusiva) -->
+    <div class="stats-bar-wrapper">
+      <div class="stats-bar" id="statsBar">
+        <button class="stat-chip header-filter-chip" data-status-filter="leido" title="Filtrar libros terminados">
+          🟢 Leídos: <strong id="statLeidos">209</strong>
+        </button>
+        <button class="stat-chip header-filter-chip" data-status-filter="leyendo" title="Filtrar libros en curso">
+          🟠 Empezados: <strong id="statLeyendo">39</strong>
+        </button>
+        <button class="stat-chip header-filter-chip" data-status-filter="no_leido" title="Filtrar libros pendientes">
+          ⚪ Pendientes: <strong id="statPendientes">607</strong>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- SECCIÓN DE CONTROLES Y NAVEGACIÓN -->
+  <div class="controls-container">
+    
+    <!-- Barra de búsqueda con sugerencias y redirección directa a ficha -->
+    <div class="search-box-wrapper">
+      <span class="search-icon">🔍</span>
+      <input 
+        type="search" 
+        id="searchInput" 
+        class="search-input" 
+        placeholder="Buscar por título, autor (Apellido, Nombre), editorial, año o CDU (Pulsa Enter o selecciona para abrir ficha)..."
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button id="searchClearBtn" class="search-clear-btn" title="Limpiar búsqueda">✕</button>
+      
+      <!-- Desplegable de sugerencias con acceso directo a ficha individual -->
+      <div id="searchDropdown" class="search-dropdown" style="display: none;"></div>
+    </div>
+
+    <!-- Selector de Ubicaciones -->
+    <div class="navigation-section">
+      <div class="filter-group-label">Ubicación y Catálogo</div>
+      <div class="button-pills-row" id="locationFilterGroup">
+        <button class="btn-pill active" data-location="ALL">
+          📖 Lista Total <span class="badge-count" id="countAll">855</span>
+        </button>
+        <button class="btn-pill btn-pill-loc-terrassa" data-location="Terrassa">
+          🏠 Terrassa <span class="badge-count" id="countTerrassa">245</span>
+        </button>
+        <button class="btn-pill btn-pill-loc-marina" data-location="Marina">
+          🌊 Marina <span class="badge-count" id="countMarina">337</span>
+        </button>
+        <button class="btn-pill btn-pill-loc-ribera" data-location="Ribera">
+          🌳 Ribera <span class="badge-count" id="countRibera">192</span>
+        </button>
+        <button class="btn-pill btn-pill-loc-diagonal" data-location="Diagonal">
+          🏛️ Diagonal <span class="badge-count" id="countDiagonal">81</span>
+        </button>
+        
+        <!-- Botón para ordenar según CDU (a modo de biblioteca) -->
+        <button class="btn-pill btn-pill-cdu" id="btnQuickCduSort" title="Ordenar estantería por código CDU">
+          📚 Orden Biblioteca (CDU)
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtros Secundarios (Tipología, Etiquetas Temáticas y Libros con datos faltantes) -->
+    <div class="secondary-controls">
+
+      <!-- Fila 1: Tipología + Vistas -->
+      <div class="secondary-controls-row">
+        <div class="status-filters">
+          <span class="filter-group-label" style="margin-right: 0.35rem;">Filtro:</span>
+          <button class="btn-pill status-btn active" data-type="ALL">Todos</button>
+          <button class="btn-pill status-btn" data-type="LIBROS">📚 Solo Libros</button>
+          <button class="btn-pill status-btn" data-type="COMICS">🗯️ Cómics</button>
+          <button class="btn-pill status-btn" data-type="IMPRESOS">🖨️ Impresos</button>
+          <!-- Filtro para libros donde falte algún dato (CDU, año, editorial) -->
+          <button class="btn-pill status-btn btn-pill-review" data-missing="true" id="btnFilterMissing">
+            ⚠️ Faltan datos (CDU...) <span class="badge-count" id="countMissing">372</span>
+          </button>
+        </div>
+
+        <div class="view-options">
+          <button class="view-btn active" id="btnViewCards" title="Vista Cuadrícula de Tarjetas">
+            🗂️ Tarjetas
+          </button>
+          <button class="view-btn" id="btnViewTable" title="Vista Tabla Bibliográfica (OPAC)">
+            📋 Tabla OPAC
+          </button>
+          <button class="view-btn btn-print-action" id="btnPrint" title="Imprimir lista actual">
+            🖨️ Imprimir Lista
+          </button>
+        </div>
+      </div>
+
+      <!-- Fila 2: Filtro por Etiquetas Temáticas (Tesauro Fase 4) -->
+      <div class="tag-filter-row" id="tagFilterRow">
+        <span class="filter-group-label" style="margin-right: 0.35rem; white-space: nowrap;">Etiqueta:</span>
+        <div class="tag-filter-pills" id="tagFilterPills">
+          <button class="btn-pill tag-filter-btn active" data-tag="">Todas</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Ficción">Ficción</button>
+          <button class="btn-pill tag-filter-btn" data-tag="No ficción">No ficción</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Cómic">🗯️ Cómic</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Star Wars">⭐ Star Wars</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Juvenil">🧒 Juvenil</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Historia y Biografía">📜 Historia</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Filosofía y Pensamiento">🧠 Filosofía</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Ciencias Sociales y Política">🏛️ Cs. Sociales</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Ciencia y Divulgación">🔬 Ciencia</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Arte y Cine">🎬 Arte y Cine</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Ciencia Ficción y Fantasía">🚀 CF y Fantasía</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Misterio y Novela Negra">🔍 Novela Negra</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Clásicos de la Literatura">📖 Clásicos</button>
+          <button class="btn-pill tag-filter-btn" data-tag="Impreso">🖨️ Impreso</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- CONTENIDO PRINCIPAL: LISTAS Y TARJETAS -->
+  <main class="main-content">
+    
+    <!-- Encabezado para modo impresión profesional -->
+    <div class="print-header" id="printHeader">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+        <div>
+          <h2 style="font-size: 18pt; margin: 0;">Biblioteca de Rubén</h2>
+          <p style="font-size: 11pt; color: #444; margin: 0.2rem 0 0 0;" id="printMetaText">Catálogo de Libros</p>
+        </div>
+        <div style="text-align: right; font-size: 9pt; color: #666;" id="printDateText"></div>
+      </div>
+    </div>
+
+    <!-- Barra de metadatos de resultados -->
+    <div class="results-meta">
+      <div class="active-filter-desc" id="filterDescription">
+        Mostrando <strong id="visibleCount">855</strong> libros en <strong id="activeViewName">Lista Total</strong>
+      </div>
+      <div id="sortControls">
+        <label for="sortSelect" style="font-size: 0.8rem; margin-right: 0.35rem;">Ordenar por:</label>
+        <select id="sortSelect" class="select-control">
+          <option value="id-asc">Nº Catálogo</option>
+          <option value="cdu-library">📚 Código CDU (Orden Biblioteca)</option>
+          <option value="autor-asc">Autor (A-Z)</option>
+          <option value="titulo-asc">Título (A-Z)</option>
+          <option value="ano-desc">Año (Más reciente)</option>
+          <option value="ano-asc">Año (Más antiguo)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Contenedor Vista Tarjetas -->
+    <div class="books-grid" id="booksGrid"></div>
+
+    <!-- Contenedor Vista Tabla OPAC -->
+    <div class="table-container" id="tableContainer" style="display: none;">
+      <table class="catalog-table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th style="width: 85px;">CDU</th>
+            <th>Título del Libro</th>
+            <th>Autor / Autores</th>
+            <th>Editorial</th>
+            <th style="width: 65px;">Año</th>
+            <th style="width: 110px;">Ubicación</th>
+            <th style="width: 105px;">Lectura</th>
+          </tr>
+        </thead>
+        <tbody id="catalogTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Estado Vacío -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <div class="empty-state-icon">🔎</div>
+      <h3 class="empty-state-title">No se encontraron libros</h3>
+      <p class="empty-state-desc">No hay ningún registro que coincida con los criterios de búsqueda o filtros seleccionados.</p>
+      <button class="btn-pill" id="btnResetFilters">Restablecer todos los filtros</button>
+    </div>
+
+  </main>
+
+  <!-- MODAL: FICHA INDIVIDUAL DE LIBRO (CONSULTA, EDICIÓN Y ACCESO A CATÁLOGOS EXTERNOS) -->
+  <div class="modal-overlay" id="bookModalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalBookTitle">
+    <div class="modal-card">
+      
+      <!-- Cabecera del modal -->
+      <div class="modal-header">
+        <div class="modal-header-meta">
+          <span class="modal-badge-title">Ficha Bibliográfica</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button class="btn-edit-toggle" id="modalToggleEditBtn" title="Modificar datos o ubicación del libro">
+            ✏️ Editar
+          </button>
+          <button class="modal-close-btn" id="modalCloseBtn" aria-label="Cerrar ficha">✕</button>
+        </div>
+      </div>
+
+      <!-- MODO VISTA LECTURA -->
+      <div class="modal-body" id="modalViewSection">
+        
+        <div class="modal-top-layout">
+          <div class="modal-cover-container" id="modalCoverBox">
+            <div class="book-cover-placeholder">
+              <span class="cover-icon">📖</span>
+              <span class="cover-hint">Sin portada</span>
+            </div>
+          </div>
+
+          <div class="modal-main-info">
+            <div class="modal-status-badge-row">
+              <div id="modalStatusBadge"></div>
+              <div id="modalLocationBadge"></div>
+            </div>
+
+            <h2 class="modal-title" id="modalBookTitle">Título del libro</h2>
+
+            <div class="modal-authors-section">
+              <div class="modal-label">Autor / Autores</div>
+              <div class="modal-author-list" id="modalAuthorsList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-details-grid">
+          <div class="detail-item">
+            <span class="modal-label">Editorial</span>
+            <span class="detail-val" id="modalEditorial">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">Año</span>
+            <span class="detail-val" id="modalAno">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">CDU</span>
+            <span class="detail-val cdu-highlight" id="modalCdu">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">Páginas</span>
+            <span class="detail-val" id="modalPaginas">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">ISBN</span>
+            <span class="detail-val" id="modalIsbn" style="font-family: var(--font-mono); font-size: 0.85rem;">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">Ubicación</span>
+            <span class="detail-val" id="modalLocalizacion">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="modal-label">Tipología</span>
+            <span class="detail-val" id="modalTipologia">Libro</span>
+          </div>
+        </div>
+
+        <!-- ENLACES DIRECTOS A CATÁLOGOS PÚBLICOS (BNE Y GOOGLE BOOKS) -->
+        <div class="external-catalogs-box">
+          <div class="external-catalogs-header">
+            <span class="external-catalogs-title">🌐 Consultar en Catálogos Públicos</span>
+            <span class="external-catalogs-hint">Abre directamente la búsqueda oficial en una nueva pestaña</span>
+          </div>
+          <div class="external-links-row">
+            <a id="linkBneSearch" href="#" target="_blank" rel="noopener noreferrer" class="btn-external-link btn-bne" title="Buscar este libro en el Catálogo de la Biblioteca Nacional de España">
+              🏛️ Catálogo BNE ↗
+            </a>
+            <a id="linkGoogleBooksSearch" href="#" target="_blank" rel="noopener noreferrer" class="btn-external-link btn-gbooks" title="Buscar este libro en Google Books">
+              🔍 Google Books ↗
+            </a>
+          </div>
+        </div>
+
+        <div class="modal-tags-section">
+          <div class="modal-label" style="margin-bottom: 0.4rem;">Etiquetas y Colección</div>
+          <div class="modal-tags-box" id="modalTagsBox"></div>
+        </div>
+
+      </div>
+
+      <!-- MODO EDICIÓN DE FICHA EXISTENTE -->
+      <form class="modal-body modal-form-body" id="modalEditSection" style="display: none;">
+        
+        <div class="form-row">
+          <label class="form-label" for="editTitle">Título del Libro *</label>
+          <input type="text" id="editTitle" class="form-input" required>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="editAuthors">Autores (separar con ';' si hay más de uno)</label>
+          <input type="text" id="editAuthors" class="form-input" placeholder="Ej: Fara, Patricia; Gómez, Joan">
+          <span class="form-hint">Se normalizará automáticamente a formato Apellido, Nombre.</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="editEditorial">Editorial</label>
+            <input type="text" id="editEditorial" class="form-input">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="editAno">Año de publicación</label>
+            <input type="text" id="editAno" class="form-input" placeholder="Ej: 2021">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="editCdu">Código CDU (simplificado)</label>
+            <input type="text" id="editCdu" class="form-input" placeholder="Ej: 821.111 o 94">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="editIsbn">ISBN (10 o 13 dígitos)</label>
+            <input type="text" id="editIsbn" class="form-input" placeholder="Ej: 978-84-376-0494-7">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="editLocation">Ubicación *</label>
+            <select id="editLocation" class="form-input form-select" required>
+              <option value="Terrassa">Terrassa</option>
+              <option value="Marina">Marina</option>
+              <option value="Ribera">Ribera</option>
+              <option value="Diagonal">Diagonal</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="editStatus">Estado de Lectura</label>
+            <select id="editStatus" class="form-input form-select">
+              <option value="no_leido">⚪ Pendiente (No leído)</option>
+              <option value="leyendo">🟠 Empezado (En lectura)</option>
+              <option value="leido">🟢 Leído (Terminado)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="editType">Tipología</label>
+            <select id="editType" class="form-input form-select">
+              <option value="libro">Libro general</option>
+              <option value="comic">Cómic / Novela Gráfica</option>
+              <option value="impreso">Libro Impreso</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="editTags">Etiquetas (separadas por coma)</label>
+            <input type="text" id="editTags" class="form-input" placeholder="Ej: Star Wars, Ficción, Cómic...">
+          </div>
+        </div>
+
+        <div class="form-actions-row">
+          <button type="button" class="btn-pill" id="btnCancelEdit">Cancelar</button>
+          <button type="submit" class="btn-action-primary">💾 Guardar Cambios</button>
+        </div>
+
+      </form>
+
+      <!-- Pie del modal con navegación entre libros -->
+      <div class="modal-nav-bar" id="modalNavBar">
+        <button class="nav-arrow-btn" id="modalPrevBtn">← Libro anterior</button>
+        <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);" id="modalCounterIndex">1 de 855</span>
+        <button class="nav-arrow-btn" id="modalNextBtn">Libro siguiente →</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: ALTA DE NUEVO LIBRO -->
+  <div class="modal-overlay" id="newBookModalOverlay" role="dialog" aria-modal="true" aria-labelledby="newBookModalTitle">
+    <div class="modal-card">
+      
+      <div class="modal-header">
+        <div class="modal-header-meta">
+          <span class="modal-badge-title" id="newBookModalTitle">➕ Añadir Nuevo Libro al Catálogo</span>
+        </div>
+        <button class="modal-close-btn" id="newBookCloseBtn" aria-label="Cerrar ventana">✕</button>
+      </div>
+
+      <form class="modal-body modal-form-body" id="newBookForm">
+        
+        <div class="form-row">
+          <label class="form-label" for="newTitle">Título del Libro *</label>
+          <input type="text" id="newTitle" class="form-input" placeholder="Título completo de la obra" required>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="newAuthors">Autor o Autores</label>
+          <input type="text" id="newAuthors" class="form-input" placeholder="Ej: García Márquez, Gabriel o Stephen King (Separar con ';' si son varios)">
+          <span class="form-hint">Puedes introducir 'Apellido, Nombre' o 'Nombre Apellido'. Si hay varios autores, sepáralos con punto y coma ';'.</span>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="newEditorial">Editorial</label>
+            <input type="text" id="newEditorial" class="form-input" placeholder="Ej: Anagrama, Planeta, Marvel...">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="newAno">Año de publicación</label>
+            <input type="text" id="newAno" class="form-input" placeholder="Ej: 2024">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="newCdu">Código CDU (simplificado)</label>
+            <input type="text" id="newCdu" class="form-input" placeholder="Ej: 821.134 o dejar en blanco">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="newIsbn">ISBN (opcional)</label>
+            <input type="text" id="newIsbn" class="form-input" placeholder="Ej: 978-84-376-0494-7">
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="newLocation">Ubicación inicial *</label>
+            <select id="newLocation" class="form-input form-select" required>
+              <option value="Terrassa">Terrassa</option>
+              <option value="Marina">Marina</option>
+              <option value="Ribera">Ribera</option>
+              <option value="Diagonal">Diagonal</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="newStatus">Estado de Lectura</label>
+            <select id="newStatus" class="form-input form-select">
+              <option value="no_leido" selected>⚪ Pendiente (No leído)</option>
+              <option value="leyendo">🟠 Empezado (En lectura)</option>
+              <option value="leido">🟢 Leído (Terminado)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="newType">Tipología de Registro</label>
+            <select id="newType" class="form-input form-select">
+              <option value="libro" selected>Libro general</option>
+              <option value="comic">Cómic / Novela Gráfica</option>
+              <option value="impreso">Libro Impreso</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="newTags">Etiquetas o Colección (opcional)</label>
+            <input type="text" id="newTags" class="form-input" placeholder="Ej: Star Wars, Ficción, Novela...">
+          </div>
+        </div>
+
+        <div class="form-actions-row">
+          <button type="button" class="btn-pill" id="btnCancelNewBook">Cancelar</button>
+          <button type="submit" class="btn-action-primary">💾 Guardar en el Catálogo</button>
+        </div>
+
+      </form>
+
+    </div>
+  </div>
+
+  <!-- NOTIFICACIÓN FLOTANTE (TOAST) -->
+  <div class="toast-notification" id="toastNotification"></div>
+
+  <!-- MODAL: GLOSARIO CDU (FASE 4) -->
+  <div class="modal-overlay" id="cduGuideOverlay" role="dialog" aria-modal="true" aria-labelledby="cduGuideTitle">
+    <div class="modal-card modal-card-wide">
+      <div class="modal-header">
+        <div class="modal-header-meta">
+          <span class="modal-badge-title">ℹ️ Guía de Clasificación CDU</span>
+        </div>
+        <button class="modal-close-btn" id="cduGuideCloseBtn" aria-label="Cerrar guía CDU">✕</button>
+      </div>
+      <div class="modal-body cdu-guide-body" id="cduGuideBody">
+        <p class="cdu-guide-intro">La <strong>Clasificación Decimal Universal (CDU)</strong> es el sistema internacional de clasificación bibliográfica usado en la mayoría de bibliotecas españolas y europeas. Los números son decimales: <strong>82 &gt; 821 &gt; 821.1 &gt; 821.134</strong>. Los libros de tu catálogo siguen este orden en la vista «Orden Biblioteca (CDU)».</p>
+        <div class="cdu-guide-grid">
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">0</div>
+            <div class="cdu-class-info">
+              <strong>Generalidades. Ciencia y conocimiento</strong>
+              <ul>
+                <li><code>001</code> Ciencia y conocimiento en general</li>
+                <li><code>003</code> Escritura, criptografía</li>
+                <li><code>004</code> Informática y computación</li>
+                <li><code>030</code> Obras de referencia, enciclopedias</li>
+                <li><code>050</code> Publicaciones periódicas, revistas</li>
+                <li><code>087.5</code> Literatura juvenil</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">1</div>
+            <div class="cdu-class-info">
+              <strong>Filosofía. Psicología</strong>
+              <ul>
+                <li><code>1</code> Filosofía en general</li>
+                <li><code>14</code> Corrientes filosóficas</li>
+                <li><code>159.9</code> Psicología</li>
+                <li><code>17</code> Ética, filosofía moral</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">2</div>
+            <div class="cdu-class-info">
+              <strong>Religión. Teología</strong>
+              <ul>
+                <li><code>21</code> Religión natural</li>
+                <li><code>22</code> Biblia, escrituras sagradas</li>
+                <li><code>28</code> Iglesia cristiana</li>
+                <li><code>29</code> Religiones no cristianas</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">3</div>
+            <div class="cdu-class-info">
+              <strong>Ciencias Sociales</strong>
+              <ul>
+                <li><code>316</code> Sociología</li>
+                <li><code>32</code> Ciencia política</li>
+                <li><code>323</code> Política interior</li>
+                <li><code>329</code> Partidos políticos</li>
+                <li><code>33</code> Economía</li>
+                <li><code>355</code> Arte militar, defensa</li>
+                <li><code>37</code> Educación</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">5</div>
+            <div class="cdu-class-info">
+              <strong>Matemáticas y Ciencias Naturales</strong>
+              <ul>
+                <li><code>51</code> Matemáticas</li>
+                <li><code>52</code> Astronomía, astrofísica</li>
+                <li><code>54</code> Química</li>
+                <li><code>57</code> Biología</li>
+                <li><code>59</code> Zoología</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">6</div>
+            <div class="cdu-class-info">
+              <strong>Ciencias Aplicadas. Medicina. Tecnología</strong>
+              <ul>
+                <li><code>61</code> Medicina</li>
+                <li><code>63</code> Agricultura</li>
+                <li><code>65</code> Gestión y organización empresarial</li>
+                <li><code>67/69</code> Industrias, oficios</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">7</div>
+            <div class="cdu-class-info">
+              <strong>Arte. Entretenimiento. Deporte</strong>
+              <ul>
+                <li><code>73/76</code> Artes plásticas, escultura, grabado</li>
+                <li><code>741.5</code> Cómic, tebeo, historieta</li>
+                <li><code>77</code> Fotografía</li>
+                <li><code>78</code> Música</li>
+                <li><code>791</code> Espectáculos, cine</li>
+                <li><code>796</code> Deporte, juegos</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">8</div>
+            <div class="cdu-class-info">
+              <strong>Lingüística. Literatura</strong>
+              <ul>
+                <li><code>81</code> Lingüística, idiomas</li>
+                <li><code>82</code> Literatura (general)</li>
+                <li><code>821.111</code> Literatura en inglés</li>
+                <li><code>821.112.2</code> Literatura en alemán</li>
+                <li><code>821.133.1</code> Literatura en francés</li>
+                <li><code>821.134.2</code> Literatura en castellano</li>
+                <li><code>821.134.3</code> Literatura en catalán</li>
+                <li><code>821.161.1</code> Literatura en ruso</li>
+              </ul>
+            </div>
+          </div>
+          <div class="cdu-class-card">
+            <div class="cdu-class-num">9</div>
+            <div class="cdu-class-info">
+              <strong>Geografía. Historia. Ciencias auxiliares</strong>
+              <ul>
+                <li><code>91</code> Geografía, atlas, mapas</li>
+                <li><code>929</code> Biografías</li>
+                <li><code>93/94</code> Historia en general</li>
+                <li><code>94(460)</code> Historia de España</li>
+                <li><code>94(4)</code> Historia de Europa</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <p class="cdu-guide-note">💡 <strong>Nota:</strong> Los subíndices entre paréntesis son <em>auxiliares comunes de lugar</em>: <code>(460)</code> = España, <code>(4)</code> = Europa, <code>(091)</code> = perspectiva histórica. Los subíndices con dos puntos indican <em>relación</em>: <code>504:37</code> = Medio ambiente aplicado a la educación.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIE DE PÁGINA -->
+  <footer class="site-footer">
+    <p>Catálogo Bibliográfico • <strong>Biblioteca de Rubén</strong></p>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="./js/data.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
